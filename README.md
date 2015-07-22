@@ -22,12 +22,13 @@ Used Version: Nastran 2012 Quick Reference and three.js 71
 
 
 ### Usage ###
-Include the DATLoader:
+
+Include the file:
 ```html
 <script src="js/DATLoader.js"></script>
 ```
 
-The load method return one array with one or two THREE.BufferGeometry.
+The load method return an array with one or two THREE.BufferGeometry.
 ```javascript
 var loader = new THREE.DATLoader();    
 loader.load('./teste2.dat', function (array) { 
@@ -35,7 +36,7 @@ loader.load('./teste2.dat', function (array) {
 
   for (var i = array.length; i--; ) {
     if (array[i].name==="SHAPE") {
-      var mesh = new THREE.Mesh(array[i], materialShape);
+      mesh = new THREE.Mesh(array[i], materialShape);
       scene.add(mesh);
 
       //Optional
@@ -55,7 +56,38 @@ loader.load('./teste2.dat', function (array) {
 });
 ```
 
-UserData of any BufferGeometry has details of all elements and points. If you try
+The result was separeted in two BufferGeometry, because there are two types os elements:
+- SHAPE Elements (Polygons)
+- Lines
+
+### BufferAtrribute face ###
+It was added the special BufferAtrribute called 'face' that contains a list of Element ID, following who is the Element owner of position. See the example bellow:
+
+```text
+GRID     1              0       0       0      
+GRID     2              1       0       0      
+GRID     3              0       1       0      
+GRID     4              1       1       0      
+CTRIA3   100            1       2       3
+CTRIA3   200            1       3       4      
+```
+The piece of text has 4 vertices(GRID) and 2 triangles(CTRIA3). The result of Array BufferAttribute 'position' and 'face' after load are:
+
+```javascript
+//position
+[0,0,0, 1,0,0, 0,1,0, 0,0,0, 0,1,0, 1,1,1] //geometry.attributes.position.array
+
+//face ID:
+//                   1                ||                   2                    //intersect.face -> THREE.Raycaster
+[100,100,100, 100,100,100, 100,100,100, 200,200,200, 200,200,200, 200,200,200,] //geometry.attributes.face.array
+
+```
+Looking at the face array, now, you know which Element ID owner from respective face.
+Using BufferAttribute face, you can find wich element was clicked through the THREE.Raycaster!
+
+### userData ###
+
+The userData of any BufferGeometry has details of all elements and points. If you try:
 ```javascript
   array[0].userData
 ```
