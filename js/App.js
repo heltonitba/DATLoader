@@ -6,34 +6,8 @@ var     raycaster = new THREE.Raycaster(),
         renderer = new THREE.WebGLRenderer(),
         mouse = new THREE.Vector2(),
         controls = new THREE.OrbitControls(camera, renderer.domElement),
-        material;
-
-init();
-animate();
-
-document.addEventListener('mousedown', onDocumentMouseDown, false);
-
-function init() {   
-        
-
-    renderer.setPixelRatio(window.devicePixelRatio);
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
-    
-    window.addEventListener('resize', onWindowResize, false);    
-        
-    document.addEventListener('mousemove', onDocumentMouseMove, false);
-    
-    
-    
-    // ASCII file
-    var loader = new THREE.DATLoader();    
-    loader.load('./teste2.dat', function (group) { 
-        
-        console.log(group);
-        for (var i = group.length; i--; ) {            
-            if (group[i].name==="SHAPE") {
-                material = new THREE.MeshBasicMaterial( 
+        materialLine = new THREE.LineBasicMaterial({ vertexColors: THREE.VertexColors }),
+		materialShape = new THREE.MeshBasicMaterial( 
                         {
                             vertexColors: THREE.VertexColors, 
                             polygonOffset: true, 
@@ -41,33 +15,71 @@ function init() {
                             polygonOffsetUnits: 1
                             //side: THREE.DoubleSide
                         });
+		
+		
 
-                var mesh = new THREE.Mesh(group[i], material);
+init();
+animate();
+
+
+
+function init() {   
+        
+
+    
+    
+    
+    
+    var loader = new THREE.DATLoader();    
+    loader.load('./teste2.dat', function (array) { 
+		//array - array of BufferGeometry      
+	  
+        for (var i = array.length; i--; ) {            
+			
+            if (array[i].name==="SHAPE") {
+                
+                var mesh = new THREE.Mesh(array[i], materialShape);
                 scene.add(mesh);
-
+				
+				//Optional
                 var helper = new THREE.EdgesHelper(mesh, 0x00ffff);
                 helper.material.linewidth = 2; 
                 scene.add(helper);
-            } else if (group[i].name==="LINE") {
-                
-                material = new THREE.LineBasicMaterial({ vertexColors: THREE.VertexColors });                
-                mesh = new THREE.Line( group[i], material, THREE.LinePieces );
+				
+				
+            } else if (array[i].name==="LINE") {                
+                                
+               mesh = new THREE.Line( array[i], materialLine, THREE.LinePieces );
                scene.add(mesh);
 
-            }
-            
-            controls.target.copy(group[i].boundingSphere.center);
+            }        
+			//can be changed
+            controls.target.copy(array[i].boundingSphere.center);
         }
-        camera.position.set(0, 0, 100); 
+        
     }); 
+	
+	renderer.setPixelRatio(window.devicePixelRatio);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+	document.body.appendChild(renderer.domElement);
+    
+    window.addEventListener('resize', onWindowResize, false);  
+    document.addEventListener('mousedown', onDocumentMouseDown, false);
+    document.addEventListener('mousemove', onDocumentMouseMove, false);
+	
 }
 
 
 function animate() {
-
     requestAnimationFrame(animate);
     render();
+}
 
+function render() {    
+    raycaster.setFromCamera(mouse, camera);
+    controls.update();
+    renderer.render(scene, camera);
 }
 
 
@@ -82,11 +94,6 @@ function onDocumentMouseMove(event) {
     mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
     mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-}
-function render() {    
-    raycaster.setFromCamera(mouse, camera);
-    controls.update();
-    renderer.render(scene, camera);
 }
 
 function onDocumentMouseDown(event) {
