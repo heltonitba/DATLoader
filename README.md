@@ -19,6 +19,10 @@ Used Version: Nastran 2012 Quick Reference and three.js 71
 - CQUAD, CQUAD4, CQUAD6 and CQUAD8 
 - CTRETA, CPENTA and CHEXA
 - CBAR
+ 
+### Suported Properties: ###
+- PBAR
+- PSHELL (Just read, doesn't draw)
 
 
 ### Usage ###
@@ -28,9 +32,11 @@ Include the file:
 <script src="js/DATLoader.js"></script>
 ```
 
-The load method return an array with one or two THREE.BufferGeometry.
+The load method return a THREE.Geometry.
 ```javascript
 var loader = new THREE.DATLoader();    
+var material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors,side: THREE.DoubleSide});
+
 loader.load('./file.dat', function(geometry) {
         
         mesh = new THREE.Mesh(geometry, material);        
@@ -42,4 +48,4 @@ loader.load('./file.dat', function(geometry) {
   
     });
 ```
-
+By default, each Element(CTRIA,CQUAD,etc...) is printed with random color.
