@@ -1,4 +1,4 @@
-BDF-DAT-Loader using three.js
+DATLoader using three.js
 ========
 
 #### three.js ####
