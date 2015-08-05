@@ -1,28 +1,28 @@
 THREE.DATLoader = function (manager) {
-
+     
+    this.nodes = [];
+    this.elements = [];    
+    this.properties =[];
+    this.faceElement = [];//faceElement[face]=idElement = relation with faceID and Element ID
     this.manager = (manager !== undefined) ? manager : THREE.DefaultLoadingManager;
-
+    
 };
 
 THREE.DATLoader.prototype = {
     constructor: THREE.DATLoader,
-    load: function (url, onLoad, onProgress, onError) {
+    load: function(url, onLoad, onProgress, onError) {
 
         var scope = this;
 
         var loader = new THREE.XHRLoader(scope.manager);
         loader.setCrossOrigin(this.crossOrigin);
-        loader.load(url, function (text) {
-
-            onLoad(scope.parse(text));
-
+        loader.load(url, function(text) {
+            onLoad(scope.geometry = scope.parse(text));
         }, onProgress, onError);
 
     },
-    /*
-     * @param {Object} File - FileAPI 
-     */
-    fileApi: function(File,cb){
+    
+    fileApi: function(File,onLoad){
         var scope = this;
         
         var reader = new FileReader();
@@ -31,225 +31,285 @@ THREE.DATLoader.prototype = {
         };
 
         reader.onloadend = function(e) {
-            cb(scope.parse(this.result));
+            if(scope.buffer)
+                onLoad(scope.parseBuffer(text));
+            else
+                onLoad(scope.parse(text));
         };
 
         reader.readAsText(File);
-        
-        
-        
+                
     },
+    
+    addNode: function() {
+       
+        return function(id, x, y, z) {            
+            this.nodes[id] = {id: id,name:"GRID "+id,x: x,y: y,z: z,elements:[]}
+        };
+    }(),
+    
+    addElement: function() {        
+        return function(json) {            
+            var faceID,nodeID;
+            //add element            
+            this.elements[json.id] = json;
+            
+            //add faces
+            for(var i=0;i<json.faces.length;i++){
+                faceID = json.faces[i];
+                this.faceElement[faceID] = json.id;
+            }
+            //add property            
+            if(this.properties[json.pid])
+                this.properties[json.pid].elements.push(json.id);
+            
+            //add Nodes
+             for(var i=0;i<json.verticesID.length;i++){
+                 nodeID = json.verticesID[i]
+                 this.nodes[nodeID].elements.push(json.id)
+             }
+            
+        };
+    }(),
+    addPropriety: function() {        
+       return function(prop){            
+           this.properties[prop.id] = prop;
+       };
+    }(),
+    
+    getElementByFaceIndex: function(face) {
+            var id = this.faceElement[face];
+            return this.elements[id];        
+    },
+     getElementByVerticeIndex: function(verticeID) {
+            var id = this.faceElement[verticeID];
+            return this.elements[id];        
+    },
+    
+    getElemetByID: function(id) {
+        return this.elements[id];
+    },
+    
+    getFacesByID: function(id) {
+        var f = [];
+        this.faceElement.forEach(function(v, i) {
+            if (v === id)
+                f.push(i);
+        });
+        return f;
+    }, 
+    
+    
     parse: function (textFile) {
-        console.log("Start DAT reading...");
-
-        var rst = [], positions = [], faces = [],
-                positionsLines = [], facesLines = [], colorArray = [],
-                pattern,
-                bufferGeo = new THREE.BufferGeometry(),
-                bufferGeoLine = new THREE.BufferGeometry(),
-                group = [],
-                userData = {
-                    // Points os all vertices
-                    GRID: new Array(),
-                    // general elements CTRIA, CQUAD, CBAR
-                    elements: new Array()
-                };
-
+        var length, id, geo_type, G, G1, G2, P1, P2, lenFaces, rst = [], pattern;
+        var width, area, length, dir, middle, pid, temp, mid, rgb = {}, aux = [];
+        var geometry = new THREE.Geometry();
+        var middle, dir, quaternion, matrix;
+        
 
         //----------------------------------------------------------------------
         // GRID
         //----------------------------------------------------------------------
         pattern = /GRID\s{3,4}(.{8})(.{8})(.{8})(.{8})(.{1,8}).*/g;
-
+        
         while ((rst = pattern.exec(textFile)) !== null) {
             id = parseInt(rst[1]);
-            userData.GRID[id] = {
-                id: id,
-                x: pTF(rst[3]),
-                y: pTF(rst[4]),
-                z: pTF(rst[5])
-            };
+            this.addNode(id, pTF(rst[3]),pTF(rst[4]),pTF(rst[5]));            
         }
-        if (userData.GRID.length === 0)
+        
+        if (this.nodes.length === 0)
             throw new Error("This files has zero vertices!");
-
-
         //----------------------------------------------------------------------
-        // CTRIA3    | EID | PID | G1  |  G2 | G3 | MCID |  ZOFFS |
-        //
-        //            G3 .
-        //              /\
-        //             /  \
-        //            /    \
-        //           /      \
-        //          /        \
-        //      G1 .----------. G2
-        //
-        // CTRIA3, CTRIA6,CRTIAR, CTRIAX  
-        //----------------------------------------------------------------------        
-        pattern = /(CTRIA\s{3}|CTRIA3\s{2}|CTRIA6\s{2}|CTRIAR\s{2}|CTRIAX\s{2})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;
         
-        while ((rst = pattern.exec(textFile)) !== null) {
-            var G1 = userData.GRID[parseInt(rst[4])],
-                G2 = userData.GRID[parseInt(rst[5])],
-                G3 = userData.GRID[parseInt(rst[6])];
         
-            var aux = [
-                
-                G1.x, G1.y, G1.z,                                        
-                G2.x, G2.y, G2.z,
-                G3.x, G3.y, G3.z, 
-            ];
-
-            //Geometry
-            var id = parseInt(rst[2]);
-            var geo_type = rst[1].replace(/\s/g, '');
-
-            for (var i = 0; i < aux.length; i++) {
-                positions.push(aux[i]);
-                faces.push(id);
-            }
-
-
-            userData.elements.push({
-                id: id,
-                type: geo_type,
-                vertices: aux,
-                centroid: {
-                    x: (aux[0] + aux[3] + aux[6]) / 3,
-                    y: (aux[1] + aux[4] + aux[7]) / 3,
-                    z: (aux[2] + aux[5] + aux[8]) / 3
-                },
-                verticesID: [
-                    parseInt(rst[4]),
-                    parseInt(rst[5]),
-                    parseInt(rst[6]),
-                ]
-            });
-        }
-
-
+        
         //----------------------------------------------------------------------
-        // CQUAD     | EID | PID | G1  |  G2 | G3  | G4  | MCID |ZOFFS |    
-        //
-        //      G2 .------------. G3        
-        //         |            |
-        //         |            |
-        //         |            |
-        //      G1 .------------. G4
-        //
-        // Normal in front of the square
-        // CQUAD, CQUAD4, CQUAD6 and CQUAD8               
+        // PSHELL
         //----------------------------------------------------------------------
-        pattern = /(CQUAD\s{3}|CQUAD4\s{2}|CQUAD6\s{2}|CQUAD8\s{2})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;
+        pattern = /(PSHELL\s{2})(.{8})(.{8})(.{8}).*/g;
         while ((rst = pattern.exec(textFile)) !== null) {
             
-            var G1 = userData.GRID[parseInt(rst[4])],
-                G2 = userData.GRID[parseInt(rst[5])],
-                G3 = userData.GRID[parseInt(rst[6])],
-                G4 = userData.GRID[parseInt(rst[7])];
+            geo_type = rst[1].replace(/\s/g, '');
+            id = parseInt(rst[2]);
+            mid = parseInt(rst[3]);            
+            
+            //Need to Implement more
+            this.addPropriety({
+                id: id,
+                name: geo_type+ " " + id,
+                type: geo_type,
+                mid : mid,
+                elements: []                       
+            });          
+        }
+        //----------------------------------------------------------------------
+        
+        
+        
+        //----------------------------------------------------------------------
+        // PBAR
+        //----------------------------------------------------------------------
+        pattern = /(PBAR\s{4})(.{8})(.{8})(.{8}).*/g;
+        while ((rst = pattern.exec(textFile)) !== null) {
+            id = parseInt(rst[2]),
+            geo_type = rst[1].replace(/\s/g, '');
+            this.addPropriety({
+                id: id,
+                name: geo_type+ " " + id,
+                type: geo_type,
+                mid : parseInt(rst[3]),
+                area : pTF(rst[4]),
+                elements: []
+            });          
+        }
+        //----------------------------------------------------------------------
+        
+        
+        
+        
+        
+        
+        //----------------------------------------------------------------------
+        // CTRIA
+        //----------------------------------------------------------------------
+        pattern = /(CTRIA\s{3}|CTRIA3\s{2}|CTRIA6\s{2}|CTRIAR\s{2}|CTRIAX\s{2})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;
+        while ((rst = pattern.exec(textFile)) !== null) {
+            rgb = {r: Math.random(), g: Math.random(), b: Math.random()};
+            id = parseInt(rst[2]),
+            geo_type = rst[1].replace(/\s/g, '');
+            pid = parseInt(rst[3]); //Prop. ID
 
-            var aux = [
-                
-                G1.x, G1.y, G1.z,                                        
-                G2.x, G2.y, G2.z,
-                G3.x, G3.y, G3.z, 
-                
-                G3.x, G3.y, G3.z,
-                G4.x, G4.y, G4.z,
-                G1.x, G1.y, G1.z 
-            ];
-
-
-
-            var id = parseInt(rst[2]);
-            var geo_type = rst[1].replace(/\s/g, '');
-
-            for (var i = 0; i < aux.length; i++) {
-                positions.push(aux[i]);
-                faces.push(id);
+            //Vertices
+            for (var i =4;i<=6;i++){
+                G = this.nodes[parseInt(rst[i])]; 
+                geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }
-
-            userData.elements.push({
+            
+            //Faces
+            length = geometry.vertices.length;            
+            geometry.faces.push(new THREE.Face3(length - 3, length - 2, length - 1));
+            
+                        
+           
+            
+            
+            //userData and Face Color
+            lenFaces = geometry.faces.length;    
+            geometry.faces[lenFaces - 1].color.setRGB(rgb.r,rgb.g,rgb.b);
+                
+            this.addElement({
                 id: id,
                 type: geo_type,
-                vertices: aux,
-                centroid: {
-                    x: (aux[0] + aux[3] + aux[6] + aux[9]) / 4,
-                    y: (aux[1] + aux[4] + aux[7] + aux[10]) / 4,
-                    z: (aux[2] + aux[5] + aux[8] + aux[11]) / 4
-                },
+                faces : [lenFaces - 1],
+                pid:pid,
+                verticesID: [
+                    parseInt(rst[4]),
+                    parseInt(rst[5]),
+                    parseInt(rst[6])
+                ]
+            });          
+        }
+        //----------------------------------------------------------------------
+      
+      
+      
+      
+      
+      
+      
+        //----------------------------------------------------------------------
+        // CQUAD
+        //----------------------------------------------------------------------    
+        pattern = /(CQUAD\s{3}|CQUAD4\s{2}|CQUAD6\s{2}|CQUAD8\s{2})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;        
+        while ((rst = pattern.exec(textFile)) !== null) {
+            rgb = {r: Math.random(), g: Math.random(), b: Math.random()};
+            id = parseInt(rst[2]),
+            geo_type = rst[1].replace(/\s/g, '');
+            pid = parseInt(rst[3]); //Prop. ID
+                      
+            //Vertices
+            for (var i =4;i<=7;i++){
+                G = this.nodes[parseInt(rst[i])]; 
+                geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
+            }            
+    
+            //Faces; 123-341            
+            length = geometry.vertices.length;
+            geometry.faces.push(new THREE.Face3(length - 4, length - 3, length - 2));    
+            geometry.faces.push(new THREE.Face3(length - 2, length - 1, length - 4)); 
+                               
+            //userData
+            lenFaces = geometry.faces.length;
+            aux =[];
+            
+            //userData and Face Color
+            for (var i = 2; i >= 1; i--) {
+                geometry.faces[lenFaces - i].color.setRGB(rgb.r,rgb.g,rgb.b);
+                aux.push(lenFaces - i);
+            }
+            
+            
+            this.addElement({
+                id: id,
+                type: geo_type,
+                faces : aux,
+                pid:pid,
                 verticesID: [
                     parseInt(rst[4]),
                     parseInt(rst[5]),
                     parseInt(rst[6]),
                     parseInt(rst[7])
                 ]
-
-
-            });
+            });            
         }
-
-
-
-
-
         //----------------------------------------------------------------------
-        // CTETRA | EID | PID | G1 | G2 | G3 | G4 | G5 | G6 |   |
-        //     0  | 1   |  2  | 3  | 4  | 5  | 6  | 7  | 8  |   |
+      
+      
+      
+      
+      
+      
         //----------------------------------------------------------------------
-        //     +  | G7 | G8  | G9 | G10 |
-        //        | 1  |  2  | 3  | 4   |
-        //----------------------------------------------------------------------   
-        // G5 - G10 are optional
-
+        // CTETRA
+        //----------------------------------------------------------------------            
         pattern = /(CTETRA\s{2})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;
         while ((rst = pattern.exec(textFile)) !== null) {
-            var G1 = userData.GRID[parseInt(rst[4])],
-                G2 = userData.GRID[parseInt(rst[5])],
-                G3 = userData.GRID[parseInt(rst[6])],
-                G4 = userData.GRID[parseInt(rst[7])];
-
-            var aux = [
-                 
-                G1.x, G1.y, G1.z,                         
-                G3.x, G3.y, G3.z, 
-                G2.x, G2.y, G2.z,  
-                                            
-                G1.x, G1.y, G1.z,                
-                G2.x, G2.y, G2.z, 
-                G4.x, G4.y, G4.z, 
-
-                G2.x, G2.y, G2.z,                 
-                G3.x, G3.y, G3.z, 
-                G4.x, G4.y, G4.z, 
-
-                          
-                G3.x, G3.y, G3.z,                 
-                G1.x, G1.y, G1.z, 
-                G4.x, G4.y, G4.z, 
-
-               
-
-            ];
-
-            var id = parseInt(rst[2]);
-            var geo_type = rst[1].replace(/\s/g, '');
-
-            for (var i = 0; i < aux.length; i++) {
-                positions.push(aux[i]);
-                faces.push(id);
+            rgb = {r: Math.random(), g: Math.random(), b: Math.random()};
+            id = parseInt(rst[2]),
+            geo_type = rst[1].replace(/\s/g, '');
+            pid = parseInt(rst[3]); //Prop. ID
+                      
+            //Vertices = 4
+            for (var i =4;i<=7;i++){
+                G = this.nodes[parseInt(rst[i])]; 
+                geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }
-
-            userData.elements.push({
+            
+    
+            //Faces; 132-124-234-314           
+            length = geometry.vertices.length;            
+            geometry.faces.push(new THREE.Face3(length - 4, length - 2, length - 3));                 
+            geometry.faces.push(new THREE.Face3(length - 4, length - 3, length - 1));
+            geometry.faces.push(new THREE.Face3(length - 3, length - 2, length - 1));
+            geometry.faces.push(new THREE.Face3(length - 2, length - 4, length - 1));
+            
+           
+            //Userdata
+            lenFaces = geometry.faces.length;
+            aux =[];
+            
+            ///userData and Face Color
+            for (var i = 4; i >= 1; i--) {
+                geometry.faces[lenFaces - i].color.setRGB(rgb.r,rgb.g,rgb.b);
+                aux.push(lenFaces - i);
+            }
+            
+            
+            this.addElement({
                 id: id,
                 type: geo_type,
-                vertices: aux,
-                centroid: {
-                    x: (aux[0] + aux[3] + aux[6] + aux[9]) / 4,
-                    y: (aux[1] + aux[4] + aux[7] + aux[10]) / 4,
-                    z: (aux[2] + aux[5] + aux[8] + aux[11]) / 4
-                },
+                faces : aux,
+                pid: pid,
                 verticesID: [
                     parseInt(rst[4]),
                     parseInt(rst[5]),
@@ -258,206 +318,127 @@ THREE.DATLoader.prototype = {
                 ]
             });
         }
-
-
-
-
         //----------------------------------------------------------------------
-        // CPENTA | EID | PID | G1 | G2 | G3 | G4 | G5 | G6 |    |  
-        //     0  | 1   |  2  | 3  | 4  | 5  | 6  | 7  | 8  |    |
+      
+      
+      
+      
+      
+      
         //----------------------------------------------------------------------
-        //     +  | G7 | G8  | G9 | G10 | G11 | G12 | G13 | G14 |
-        //     0  | 1  |  2  | 3  |  4  |  5  |  6  |  7  |  8  |
-        //----------------------------------------------------------------------
-        //     +  | G15 |
-        //     0  |  1  |
-        // G7 - G15 are optional            
-        //----------------------------------------------------------------------
+        // CPENTA
+        //----------------------------------------------------------------------        
         pattern = /(CPENTA\s{2})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;
-        while ((rst = pattern.exec(textFile)) !== null) {            
-            var G1 = userData.GRID[parseInt(rst[4])],
-                G2 = userData.GRID[parseInt(rst[5])],
-                G3 = userData.GRID[parseInt(rst[6])],
-                G4 = userData.GRID[parseInt(rst[7])],
-                G5 = userData.GRID[parseInt(rst[8])],
-                G6 = userData.GRID[parseInt(rst[9])];
-        
-            var aux = [
-                
-                G1.x, G1.y, G1.z,                
-                G3.x, G3.y, G3.z,
-                G2.x, G2.y, G2.z,
-                
-                G1.x, G1.y, G1.z,                
-                G5.x, G5.y, G5.z,
-                G4.x, G4.y, G4.z,
-                
-                G5.x, G5.y, G5.z,                
-                G1.x, G1.y, G1.z,
-                G2.x, G2.y, G2.z,
-                
-                G3.x, G3.y, G3.z,                
-                G4.x, G4.y, G4.z,
-                G6.x, G6.y, G6.z,
-                
-                G4.x, G4.y, G4.z,
-                G3.x, G3.y, G3.z,
-                G1.x, G1.y, G1.z,
-                
-                G2.x, G2.y, G2.z,
-                G6.x, G6.y, G6.z,
-                G5.x, G5.y, G5.z,
-                
-                G6.x, G6.y, G6.z,
-                G2.x, G2.y, G2.z,
-                G3.x, G3.y, G3.z,
-               
-                G4.x, G4.y, G4.z,
-                G5.x, G5.y, G5.z,
-                G6.x, G6.y, G6.z
-
-            ];
-
-            var id = parseInt(rst[2]);
-            var geo_type = rst[1].replace(/\s/g, '');
-
-            for (var i = 0; i < aux.length; i++) {
-                positions.push(aux[i]);
-                faces.push(id);
+        while ((rst = pattern.exec(textFile)) !== null) {    
+            rgb = {r: Math.random(), g: Math.random(), b: Math.random()};
+            id = parseInt(rst[2]),
+            geo_type = rst[1].replace(/\s/g, '');
+            pid = parseInt(rst[3]); //Prop. ID
+    
+            //Vertices = 4 até 9 = 6
+            for (var i =4;i<=9;i++){
+                G = this.nodes[parseInt(rst[i])]; 
+                geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }
-
-            userData.elements.push({
+            
+             //Faces; 132-154-512-346-431-265-623-456           
+            length = geometry.vertices.length;            
+            //1->6 | 2->5 | 3->4 | 4->3 | 5->2 | 6->1
+            geometry.faces.push(new THREE.Face3(length - 6,length - 4,length - 5));//132                 
+            geometry.faces.push(new THREE.Face3(length - 6,length - 2,length - 3));//154
+            geometry.faces.push(new THREE.Face3(length - 2,length - 6,length - 5));//512
+            geometry.faces.push(new THREE.Face3(length - 4,length - 3,length - 1));//346
+            geometry.faces.push(new THREE.Face3(length - 3,length - 4,length - 6));//431                
+            geometry.faces.push(new THREE.Face3(length - 5,length - 1,length - 2));//265
+            geometry.faces.push(new THREE.Face3(length - 1,length - 5,length - 4));//623
+            geometry.faces.push(new THREE.Face3(length - 3,length - 2,length - 1));//456
+            
+            
+            //Userdata
+            lenFaces = geometry.faces.length;
+            aux =[];
+            
+            
+            //userData and Face Color
+            for (var i = 8; i >= 1; i--) {
+                geometry.faces[lenFaces - i].color.setRGB(rgb.r,rgb.g,rgb.b);
+                aux.push(lenFaces - i);
+            }
+            
+            
+            this.addElement({
                 id: id,
                 type: geo_type,
-                vertices: aux,
-                centroid: {
-                    x: (aux[0] + aux[3] + aux[6] + aux[9] +
-                            aux[12] + aux[15] + aux[18] + aux[21]) / 8,
-                    y: (aux[1] + aux[4] + aux[7] + aux[10] +
-                            aux[13] + aux[16] + aux[19] + aux[22]) / 8,
-                    z: (aux[2] + aux[5] + aux[8] + aux[11] +
-                            aux[14] + aux[17] + aux[20] + aux[23]) / 8
-                },
+                faces : aux,
+                pid: pid,
                 verticesID: [
                     parseInt(rst[4]),
                     parseInt(rst[5]),
                     parseInt(rst[6]),
                     parseInt(rst[7]),
                     parseInt(rst[8]),
-                    parseInt(rst[9])
+                    parseInt(rst[9])                    
                 ]
-            });
+            });   
         }
-
-
-
-
-
-        // CHEXA | EID | PID | G1 | G2 | G3 | G4 | G5 | G6 |   |  
-        //     0  | 1   |  2  | 3  | 4  | 5  | 6  | 7  | 8  |   |
         //----------------------------------------------------------------------
-        //     +  | G7 | G8  | G9 | G10 | G11 | G12 | G13 | G14 |
-        //     0  | 1  |  2  | 3  |  4  |  5  |  6  |  7  |  8  |
+      
+      
+      
+      
+      
+      
         //----------------------------------------------------------------------
-        //     +  | G15 | G16  | G17 | G18 | G19 | G20 | 
-        //     0  |  1  |  2   |  3  |  4  |  5  |  6  |
-        //----------------------------------------------------------------------     
-        // G9 - G20 are optional           
+        // CHEXA
         //----------------------------------------------------------------------
         pattern = /(CHEXA\s{3})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8}).*\r\n.{8}(.{8})(.{1,8})/g;
-        while ((rst = pattern.exec(textFile)) !== null) {
-         
-            var G1 = userData.GRID[parseInt(rst[4])],
-                G2 = userData.GRID[parseInt(rst[5])],
-                G3 = userData.GRID[parseInt(rst[6])],
-                G4 = userData.GRID[parseInt(rst[7])],
-                G5 = userData.GRID[parseInt(rst[8])],
-                G6 = userData.GRID[parseInt(rst[9])],
-                G7 = userData.GRID[parseInt(rst[10])],
-                G8 = userData.GRID[parseInt(rst[11])];
-        
-            var aux = [
-               
-                G4.x, G4.y, G4.z,                
-                G5.x, G5.y, G5.z,
-                G8.x, G8.y, G8.z,
-                
-                G5.x, G5.y, G5.z,
-                G4.x, G4.y, G4.z,
-                G1.x, G1.y, G1.z,
-
-                G1.x, G1.y, G1.z,
-                G6.x, G6.y, G6.z,               
-                G5.x, G5.y, G5.z,
-
-                
-                G6.x, G6.y, G6.z,
-                G1.x, G1.y, G1.z,            
-                G2.x, G2.y, G2.z,
-
-                
-                G2.x, G2.y, G2.z,
-                G7.x, G7.y, G7.z,            
-                G6.x, G6.y, G6.z,
-
-                
-                G7.x, G7.y, G7.z,
-                G2.x, G2.y, G2.z,               
-                G3.x, G3.y, G3.z,
-
-                
-                G7.x, G7.y, G7.z,
-                G4.x, G4.y, G4.z,               
-                G8.x, G8.y, G8.z,
-
-                
-                G4.x, G4.y, G4.z,
-                G7.x, G7.y, G7.z,               
-                G3.x, G3.y, G3.z,
-
-                
-                G8.x, G8.y, G8.z,
-                G6.x, G6.y, G6.z,            
-                G7.x, G7.y, G7.z,
-
-                
-                G6.x, G6.y, G6.z,
-                G8.x, G8.y, G8.z,              
-                G5.x, G5.y, G5.z,
-
-                               
-                G4.x, G4.y, G4.z,
-                G2.x, G2.y, G2.z,             
-                G1.x, G1.y, G1.z,
-
-                
-                G2.x, G2.y, G2.z,
-                G4.x, G4.y, G4.z,
-                G3.x, G3.y, G3.z
-
-
-            ];
-
-            var id = parseInt(rst[2]);
-            var geo_type = rst[1].replace(/\s/g, '');
-
-            for (var i = 0; i < aux.length; i++) {
-                positions.push(aux[i]);
-                faces.push(id);
+        while ((rst = pattern.exec(textFile)) !== null) {        
+            rgb = {r: Math.random(), g: Math.random(), b: Math.random()};
+            id = parseInt(rst[2]),
+            geo_type = rst[1].replace(/\s/g, '');
+            pid = parseInt(rst[3]); //Prop. ID
+            
+                      
+            //Vertices = 11~4 = 8
+            for (var i =4;i<=11;i++){
+                G = this.nodes[parseInt(rst[i])]; 
+                geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }
-
-            userData.elements.push({
+            
+    
+            //Faces; 458-541-165-612-276-723-748-473-867-685-421-243
+            //1->8 | 2->7 | 3->6 | 4->5 | 5->4 | 6->3 | 7->2 | 8->1
+            length = geometry.vertices.length;            
+            geometry.faces.push(new THREE.Face3(length - 5, length - 4, length - 1));//458                 
+            geometry.faces.push(new THREE.Face3(length - 4,length - 5,length - 8));//541
+            geometry.faces.push(new THREE.Face3(length - 8,length - 3,length - 4));//165
+            geometry.faces.push(new THREE.Face3(length - 3,length - 8,length - 7));//612
+            geometry.faces.push(new THREE.Face3(length - 7,length - 2,length - 3));//276
+            geometry.faces.push(new THREE.Face3(length - 2,length - 7,length - 6));//723
+            geometry.faces.push(new THREE.Face3(length - 2,length - 5,length - 1));//748
+            geometry.faces.push(new THREE.Face3(length - 5,length - 2,length - 6));//473
+            geometry.faces.push(new THREE.Face3(length - 1,length - 3,length - 2));//867
+            geometry.faces.push(new THREE.Face3(length - 3,length - 1,length - 4));//685
+            geometry.faces.push(new THREE.Face3(length - 5,length - 7,length - 8));//421
+            geometry.faces.push(new THREE.Face3(length - 7,length - 5,length - 6));//243
+            
+            //Userdata
+            lenFaces = geometry.faces.length;
+            aux =[];
+            
+            
+            //userData and Face Color
+            for (var i = 12; i >= 1; i--) {
+                geometry.faces[lenFaces - i].color.setRGB(rgb.r,rgb.g,rgb.b);
+                aux.push(lenFaces - i);
+            }
+            
+            
+            this.addElement({
                 id: id,
                 type: geo_type,
-                vertices: aux,
-                centroid: {
-                    x: (aux[0] + aux[3] + aux[6] + aux[9] + aux[12] +
-                            aux[15] + aux[18] + aux[21] + aux[24] + aux[27]) / 10,
-                    y: (aux[1] + aux[4] + aux[7] + aux[10] + aux[13] +
-                            aux[16] + aux[19] + aux[22] + aux[25] + aux[28]) / 10,
-                    z: (aux[2] + aux[5] + aux[8] + aux[11] + aux[14] +
-                            aux[17] + aux[20] + aux[23] + aux[26] + aux[29]) / 10
-                },
+                faces : aux,
+                pid: pid,
                 verticesID: [
                     parseInt(rst[4]),
                     parseInt(rst[5]),
@@ -467,120 +448,102 @@ THREE.DATLoader.prototype = {
                     parseInt(rst[9]),
                     parseInt(rst[10]),
                     parseInt(rst[11])
+                    
                 ]
             });
         }
-
-
-
-        
         //----------------------------------------------------------------------
-        // CBAR   | EID | PID | GA | GB | X1 | X2 | X3 | OFFT |   |
-        //     0  | 1   |  2  | 3  | 4  | 5  | 6  | 7  |   8  |   |
+      
+      
+      
+      
+      
+    
         //----------------------------------------------------------------------
-        //CBAR     1811631 1802025 1806751 1806744      1.      0.      0.
-        //CBAR         146     101     146     147      0.      1.      0.
-        pattern = /CBAR\s{4}(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;
+        // CBAR
+        //----------------------------------------------------------------------
+        pattern = /(CBAR\s{4})(.{8})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;
         while ((rst = pattern.exec(textFile)) !== null) {
-            var aux = [
-                //ponto 1
-                userData.GRID[parseInt(rst[3])].x,
-                userData.GRID[parseInt(rst[3])].y,
-                userData.GRID[parseInt(rst[3])].z,
-                //ponto 2
-                userData.GRID[parseInt(rst[4])].x,
-                userData.GRID[parseInt(rst[4])].y,
-                userData.GRID[parseInt(rst[4])].z
-            ];
+            rgb = {r: Math.random(), g: Math.random(), b: Math.random()};
+            id = parseInt(rst[2]),
+            geo_type = rst[1].replace(/\s/g, '');
+            pid = parseInt(rst[3]); //Prop. ID
+           
+            //Nodes
+            G1 = this.nodes[parseInt(rst[4])];
+            G2 = this.nodes[parseInt(rst[5])];
+            P1 = new THREE.Vector3(G1.x, G1.y, G1.z);
+            P2 = new THREE.Vector3(G2.x, G2.y, G2.z);
             
-            for (var i = 0; i < aux.length; i++) {
-                positionsLines.push(aux[i]);
-                facesLines.push(id);
+            // width and area
+            width = P1.distanceTo(P2);            
+            area = this.properties[pid].area;
+
+            //BoxGeometry            
+            temp = new THREE.BoxGeometry( width, Math.sqrt(area), Math.sqrt(area));
+            
+            
+            //Change position and rotation
+            var middle = new THREE.Vector3().copy(P1).lerp(P2, 0.5);   
+            var dir = new THREE.Vector3().copy(P2).sub(P1).normalize();
+            var quaternion = new THREE.Quaternion().setFromUnitVectors( new THREE.Vector3(1, 0, 0), dir )  
+            var matrix = new THREE.Matrix4().compose( middle, quaternion, new THREE.Vector3(1,1,1) );
+            
+            
+            // Merge Geometry
+            // lenFaces += 12
+            length = geometry.vertices.length;  
+            geometry.merge( temp, matrix );
+            
+            //Userdata   
+            lenFaces = geometry.faces.length;
+            aux =[];
+            
+            
+            //userData Face
+            for (var i = 12; i >= 1; i--){
+                aux.push(lenFaces - i);
+                geometry.faces[lenFaces - i].color.setRGB(rgb.r,rgb.g,rgb.b);
             }
-
-            userData.elements.push({
-                id: parseInt(rst[1]),
-                type: 'CBAR',
-                centroid: {
-                    x: (aux[0] + aux[3]) / 2,
-                    y: (aux[1] + aux[4]) / 2,
-                    z: (aux[2] + aux[5]) / 2
-                },
-                vertices: aux,
-                verticesID: [
-                    parseInt(rst[3]),
-                    parseInt(rst[4])
-                ]
-            });
-
+                        
             
-
-
+            //Add element
+            this.addElement({
+                id: id,                
+                type: geo_type,
+                faces : aux,
+                pid: pid,
+                propriety: pid,
+                verticesID: [ parseInt(rst[4]), parseInt(rst[5]) ]
+            });   
         }
+                
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();        
         
-
-        /* BufferGeometry*/
-        
-        if(positions.length>3){
-            
-            for (var i = positions.length; i--; )
-                colorArray[i] = Math.random();
-            bufferGeo.name = "SHAPE"
-            bufferGeo.userData = userData;
-            bufferGeo.addAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
-            bufferGeo.addAttribute('face', new THREE.BufferAttribute(new Uint32Array(faces), 3));
-            bufferGeo.addAttribute('color', new THREE.BufferAttribute(new Float32Array(colorArray), 3));
-            bufferGeo.computeVertexNormals();
-            bufferGeo.computeFaceNormals();
-            bufferGeo.computeBoundingSphere();
-            bufferGeo.computeBoundingBox();
-            group.push(bufferGeo);
-        }
-        /* Lines*/
-        if (positionsLines.length > 3) {
-            var index = [];
-            for (var i = 0; i < positionsLines.length; i++)
-                colorArray[i] = Math.random();
-            for (var i = 0; i < positionsLines.length / 3; i++)
-                index[i] = i;
-
-            bufferGeoLine.name = "LINE";
-            bufferGeoLine.userData = userData;
-            bufferGeoLine.addAttribute('index', new THREE.BufferAttribute(new Uint16Array(index), 1));
-            bufferGeoLine.addAttribute('position', new THREE.BufferAttribute(new Float32Array(positionsLines), 3));
-            bufferGeoLine.addAttribute('color', new THREE.BufferAttribute(new Float32Array(colorArray), 3));
-            bufferGeoLine.addAttribute('face', new THREE.BufferAttribute(new Uint32Array(facesLines), 3));
-            bufferGeoLine.computeBoundingSphere();
-            group.push(bufferGeoLine);
-        }
-        console.log('Finish DAT!');
-
-        return group;
+        return geometry;
     }
 };
 
 
 function pTF(val) {
     var rt = null, aux;
+    
+  
 
-    if ((aux = /(\.\d+)\E(\d+)/g.exec(val))) //.7E1
+    if ((aux = /(\+?\-?\d*\.\d*)((\-|\+)\d+)/g.exec(val))) //0.7+1 ou .70+1 ou 70.-1
         rt = parseFloat(aux[1]) * Math.pow(10, aux[2]);
 
-    if ((aux = /(\d*\.\d+)\+(\d+)/g.exec(val))) //0.7+1 ou .70+1
-        rt = parseFloat(aux[1]) * Math.pow(10, aux[2]);
-
-    if ((aux = /(\d+\.)\E\+(\d+)/g.exec(val))) //7.E+0
-        rt = parseFloat(aux[1]) * Math.pow(10, aux[2]);
-
-    if ((aux = /(\d+\.)(\-\d+)/g.exec(val))) //70.-1
-        rt = parseFloat(aux[1]) * Math.pow(10, aux[2]);
-
-    if (rt === null) {
+    if (rt === null) {         
         rt = parseFloat(val);
-        if (rt.isNaN)
+        if(isNaN(rt)){
             console.error("O arquivo pode estar fora dos padr?es de representa??o de ponto flutuante:" + val +
                     "\nEx: O valor 7 pode ser representado como 7. | 7.0 | .7E1 | 0.7+1 | .70+1 | 7.E+0 | 70.-1");
+        }else{
+            return rt;
+        }
+                
+    }else{
+        return rt;
     }
-    return rt;
-
 }
