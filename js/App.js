@@ -3,6 +3,7 @@
 if (!Detector.webgl)
     Detector.addGetWebGLMessage();
 
+
 var     raycaster = new THREE.Raycaster(),
         scene = new THREE.Scene(),
         camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000000),
@@ -12,7 +13,7 @@ var     raycaster = new THREE.Raycaster(),
         container = document.getElementById('container'),
         mouse = new THREE.Vector2(),
         material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors,side: THREE.DoubleSide}),
-        mesh;
+        mesh,userData;
 
 init();
 animate();
@@ -20,10 +21,11 @@ animate();
 function init() {
 
     prepareScene();
-    eventButtons();
 
-    loader.load('./teste.dat', function(geometry) {
-        
+    loader.load('./teste.dat', function(geometry,DATData) {
+        // set var userData
+        userData = DATData
+
         mesh = new THREE.Mesh(geometry, material);
         scene.add(mesh);
         
@@ -37,18 +39,6 @@ function init() {
 
 
 
-function displayIntersect(intersects, loader) {
-    var faceIndex, id, intersect, e, ids = '';
-    if (intersects.length > 0) {
-        intersect = intersects[0];
-        faceIndex = intersect.faceIndex;
-        id = loader.getElementByFaceIndex(faceIndex).id;        
-        e = loader.getElementByFaceIndex(faceIndex);
-        ids = e.type + " " + e.id;
-        $("#list-ids").html(ids);
-        console.log(ids)
-    }
-}
 
 
 
@@ -67,14 +57,6 @@ function prepareScene() {
     window.addEventListener('resize', onWindowResize, false);    
     document.addEventListener('mousemove', onDocumentMouseMove, true);
     document.addEventListener('mousedown', onDocumentMouseDown, true);
-
-
-    //Helpers
-    //addLights();
-
-
-
-
 }
 
 function animate() {
@@ -89,40 +71,6 @@ function render() {
 }
 
 
-
-
-function addShadowedLight(x, y, z, color, intensity) {
-    var directionalLight = new THREE.DirectionalLight(color, intensity);
-    directionalLight.position.set(x, y, z);
-    scene.add(directionalLight);
-    directionalLight.castShadow = true;
-    // directionalLight.shadowCameraVisible = true;
-    var d = 1;
-    directionalLight.shadowCameraLeft = -d;
-    directionalLight.shadowCameraRight = d;
-    directionalLight.shadowCameraTop = d;
-    directionalLight.shadowCameraBottom = -d;
-    directionalLight.shadowCameraNear = 1;
-    directionalLight.shadowCameraFar = 4;
-    directionalLight.shadowMapWidth = 1024;
-    directionalLight.shadowMapHeight = 1024;
-    directionalLight.shadowBias = -0.005;
-    directionalLight.shadowDarkness = 0.15;
-}
-
-
-
-
-
-
-/* - - - - - - - - - - - - - - - - - - - - - - */
-/* - - - - -  Draw/Disable Elements  - - - - - */
-/* - - - - - - - - - - - - - - - - - - - - - - */
-
-// Change color about face range
-
-
-
 /* - - - - - - - - - - - - - - - - - - - - - - */
 /* - - - - - - - MouseEvents - - - - - - - - - */
 /* - - - - - - - - - - - - - - - - - - - - - - */
@@ -132,7 +80,7 @@ function onDocumentMouseDown(event) {
     mouse.y = -((event.clientY - renderer.domElement.offsetTop) / renderer.domElement.height) * 2 + 1;
 
     var intersects = raycaster.intersectObjects(scene.children);
-    displayIntersect(intersects, loader);
+    displayIntersect(intersects, userData);
 
 }
 
@@ -148,25 +96,19 @@ function onDocumentMouseMove(event) {
     mouse.y = -((event.clientY - renderer.domElement.offsetTop) / renderer.domElement.height) * 2 + 1;  
 }
 
-function eventButtons() {    
-   
-   
 
-    $("#show-all").click(function(event) {
-        var obj = scene.getObjectByName(GEO_NAME, true);
-        obj.visible = true;
+/* - - - - - - - - - - - - - - - - - - - - - - */
+/* - - - - - - - DisplayEvents - - - - - - - - - */
+/* - - - - - - - - - - - - - - - - - - - - - - */
 
-        camera.position.copy(obj.geometry.boundingBox.min);
-        controls.target.copy(obj.geometry.boundingSphere.center);
-
-        var obj2 = scene.getObjectByName(SLT_NAME, true);
-        if (obj2)
-            obj2.visible = false;
-
-    });
-
-
-
-
+function displayIntersect(intersects, userData) {
+    var faceIndex, intersect, e, ids = '';
+    if (intersects.length > 0) {
+        intersect = intersects[0];
+        faceIndex = intersect.faceIndex;
+        e = userData.getElementByFaceIndex(faceIndex);
+        ids = e.type + " " + e.id;
+        $("#list-ids").html(ids);
+        console.log(ids)
+    }
 }
-
