@@ -21,10 +21,10 @@ THREE.DATLoader.prototype = {
         }, onProgress, onError);
 
     },
-    
-    fileApi: function(File,onLoad){
+
+   /* fileApi: function(File,onLoad){
         var scope = this;
-        
+
         var reader = new FileReader();
         reader.error = function(e) {
             alert("Error reading DAT file");
@@ -38,8 +38,8 @@ THREE.DATLoader.prototype = {
         };
 
         reader.readAsText(File);
-                
-    },
+
+    },*/
     
     addNode: function() {
        
@@ -102,7 +102,7 @@ THREE.DATLoader.prototype = {
     
     parse: function (textFile) {
         var length, id, geo_type, G, G1, G2, P1, P2, lenFaces, rst = [], pattern;
-        var width, area, length, dir, middle, pid, temp, mid, rgb = {}, aux = [];
+        var width, area, pid, temp, mid, rgb = {}, aux = [];
         var geometry = new THREE.Geometry();
         var middle, dir, quaternion, matrix;
         
@@ -177,7 +177,7 @@ THREE.DATLoader.prototype = {
             rgb = {r: Math.random(), g: Math.random(), b: Math.random()};
             id = parseInt(rst[2]),
             geo_type = rst[1].replace(/\s/g, '');
-            pid = parseInt(rst[3]); //Prop. ID
+            pid = parseInt(rst[3]);
 
             //Vertices
             for (var i =4;i<=6;i++){
@@ -484,10 +484,10 @@ THREE.DATLoader.prototype = {
             
             
             //Change position and rotation
-            var middle = new THREE.Vector3().copy(P1).lerp(P2, 0.5);   
-            var dir = new THREE.Vector3().copy(P2).sub(P1).normalize();
-            var quaternion = new THREE.Quaternion().setFromUnitVectors( new THREE.Vector3(1, 0, 0), dir )  
-            var matrix = new THREE.Matrix4().compose( middle, quaternion, new THREE.Vector3(1,1,1) );
+            middle = new THREE.Vector3().copy(P1).lerp(P2, 0.5);
+            dir = new THREE.Vector3().copy(P2).sub(P1).normalize();
+            quaternion = new THREE.Quaternion().setFromUnitVectors( new THREE.Vector3(1, 0, 0), dir )
+            matrix = new THREE.Matrix4().compose( middle, quaternion, new THREE.Vector3(1,1,1) );
             
             
             // Merge Geometry

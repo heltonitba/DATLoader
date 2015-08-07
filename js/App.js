@@ -11,12 +11,8 @@ var     raycaster = new THREE.Raycaster(),
         loader = new THREE.DATLoader(),
         container = document.getElementById('container'),
         mouse = new THREE.Vector2(),
-        mesh,
-        materialPhong = new THREE.MeshBasicMaterial({
-            vertexColors: THREE.FaceColors, //ambient: 0x555555,
-            side: THREE.DoubleSide, specular: 0xffffff, shininess: 50,
-            //shading: THREE.SmoothShading
-        });
+        material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors,side: THREE.DoubleSide}),
+        mesh;
 
 init();
 animate();
@@ -24,15 +20,12 @@ animate();
 function init() {
 
     prepareScene();
-
     eventButtons();
-
 
     loader.load('./teste.dat', function(geometry) {
         
-        mesh = new THREE.Mesh(geometry, materialPhong);        
+        mesh = new THREE.Mesh(geometry, material);
         scene.add(mesh);
-        
         
         //Update camera and controls
         camera.position.copy(geometry.boundingBox.min);
@@ -43,7 +36,7 @@ function init() {
 }
 
 
-//concertar
+
 function displayIntersect(intersects, loader) {
     var faceIndex, id, intersect, e, ids = '';
     if (intersects.length > 0) {
