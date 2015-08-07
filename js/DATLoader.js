@@ -515,10 +515,12 @@ THREE.DATData.prototype = {
         var id = this.faceElement[face];
         return this.elements[id];
     },
+    /*
     getElementByVerticeID: function(verticeID) {
         var id = this.faceElement[verticeID];
         return this.elements[id];
     },
+    */
 
     getElemet: function(id) {
         return this.elements[id];
