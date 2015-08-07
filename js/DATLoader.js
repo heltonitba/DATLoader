@@ -515,7 +515,7 @@ THREE.DATData.prototype = {
         var id = this.faceElement[face];
         return this.elements[id];
     },
-    getElementByVerticeIndex: function(verticeID) {
+    getElementByVerticeID: function(verticeID) {
         var id = this.faceElement[verticeID];
         return this.elements[id];
     },
