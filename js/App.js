@@ -30,7 +30,7 @@ function init() {
         scene.add(mesh);
         
         //Update camera and controls
-        camera.position.copy(geometry.boundingBox.min);
+        camera.position.set(5,5,5)
         controls.target.copy(geometry.boundingSphere.center);
   
     });
