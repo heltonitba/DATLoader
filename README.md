@@ -40,7 +40,8 @@ The load method return a THREE.Geometry.
 var loader = new THREE.DATLoader();    
 var material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors,side: THREE.DoubleSide});
 
-loader.load('./file.dat', function(geometry) {
+loader.load('./file.dat', function(geometry,DATData) {
+        console.log(DATData);
         
         mesh = new THREE.Mesh(geometry, material);        
         scene.add(mesh);
