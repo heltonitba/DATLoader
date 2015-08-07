@@ -1,9 +1,5 @@
 THREE.DATLoader = function (manager) {
      
-    this.nodes = [];
-    this.elements = [];    
-    this.properties =[];
-    this.faceElement = [];//faceElement[face]=idElement = relation with faceID and Element ID
     this.manager = (manager !== undefined) ? manager : THREE.DefaultLoadingManager;
     
 };
@@ -17,7 +13,8 @@ THREE.DATLoader.prototype = {
         var loader = new THREE.XHRLoader(scope.manager);
         loader.setCrossOrigin(this.crossOrigin);
         loader.load(url, function(text) {
-            onLoad(scope.geometry = scope.parse(text));
+            var array = scope.parse(text);
+            onLoad(array[0],array[1]);
         }, onProgress, onError);
 
     },
@@ -40,70 +37,13 @@ THREE.DATLoader.prototype = {
         reader.readAsText(File);
 
     },*/
-    
-    addNode: function() {
-       
-        return function(id, x, y, z) {            
-            this.nodes[id] = {id: id,name:"GRID "+id,x: x,y: y,z: z,elements:[]}
-        };
-    }(),
-    
-    addElement: function() {        
-        return function(json) {            
-            var faceID,nodeID;
-            //add element            
-            this.elements[json.id] = json;
-            
-            //add faces
-            for(var i=0;i<json.faces.length;i++){
-                faceID = json.faces[i];
-                this.faceElement[faceID] = json.id;
-            }
-            //add property            
-            if(this.properties[json.pid])
-                this.properties[json.pid].elements.push(json.id);
-            
-            //add Nodes
-             for(var i=0;i<json.verticesID.length;i++){
-                 nodeID = json.verticesID[i]
-                 this.nodes[nodeID].elements.push(json.id)
-             }
-            
-        };
-    }(),
-    addPropriety: function() {        
-       return function(prop){            
-           this.properties[prop.id] = prop;
-       };
-    }(),
-    
-    getElementByFaceIndex: function(face) {
-            var id = this.faceElement[face];
-            return this.elements[id];        
-    },
-     getElementByVerticeIndex: function(verticeID) {
-            var id = this.faceElement[verticeID];
-            return this.elements[id];        
-    },
-    
-    getElemetByID: function(id) {
-        return this.elements[id];
-    },
-    
-    getFacesByID: function(id) {
-        var f = [];
-        this.faceElement.forEach(function(v, i) {
-            if (v === id)
-                f.push(i);
-        });
-        return f;
-    }, 
-    
+
     
     parse: function (textFile) {
         var length, id, geo_type, G, G1, G2, P1, P2, lenFaces, rst = [], pattern;
         var width, area, pid, temp, mid, rgb = {}, aux = [];
         var geometry = new THREE.Geometry();
+        var data = new THREE.DATData()
         var middle, dir, quaternion, matrix;
         
 
@@ -114,10 +54,10 @@ THREE.DATLoader.prototype = {
         
         while ((rst = pattern.exec(textFile)) !== null) {
             id = parseInt(rst[1]);
-            this.addNode(id, pTF(rst[3]),pTF(rst[4]),pTF(rst[5]));            
+            data.addNode(id, pTF(rst[3]),pTF(rst[4]),pTF(rst[5]));
         }
         
-        if (this.nodes.length === 0)
+        if (data.nodes.length === 0)
             throw new Error("This files has zero vertices!");
         //----------------------------------------------------------------------
         
@@ -134,7 +74,7 @@ THREE.DATLoader.prototype = {
             mid = parseInt(rst[3]);            
             
             //Need to Implement more
-            this.addPropriety({
+            data.addPropriety({
                 id: id,
                 name: geo_type+ " " + id,
                 type: geo_type,
@@ -153,7 +93,7 @@ THREE.DATLoader.prototype = {
         while ((rst = pattern.exec(textFile)) !== null) {
             id = parseInt(rst[2]),
             geo_type = rst[1].replace(/\s/g, '');
-            this.addPropriety({
+            data.addPropriety({
                 id: id,
                 name: geo_type+ " " + id,
                 type: geo_type,
@@ -181,7 +121,7 @@ THREE.DATLoader.prototype = {
 
             //Vertices
             for (var i =4;i<=6;i++){
-                G = this.nodes[parseInt(rst[i])]; 
+                G = data.nodes[parseInt(rst[i])];
                 geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }
             
@@ -197,7 +137,7 @@ THREE.DATLoader.prototype = {
             lenFaces = geometry.faces.length;    
             geometry.faces[lenFaces - 1].color.setRGB(rgb.r,rgb.g,rgb.b);
                 
-            this.addElement({
+            data.addElement({
                 id: id,
                 type: geo_type,
                 faces : [lenFaces - 1],
@@ -229,7 +169,7 @@ THREE.DATLoader.prototype = {
                       
             //Vertices
             for (var i =4;i<=7;i++){
-                G = this.nodes[parseInt(rst[i])]; 
+                G = data.nodes[parseInt(rst[i])];
                 geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }            
     
@@ -249,7 +189,7 @@ THREE.DATLoader.prototype = {
             }
             
             
-            this.addElement({
+            data.addElement({
                 id: id,
                 type: geo_type,
                 faces : aux,
@@ -281,7 +221,7 @@ THREE.DATLoader.prototype = {
                       
             //Vertices = 4
             for (var i =4;i<=7;i++){
-                G = this.nodes[parseInt(rst[i])]; 
+                G = data.nodes[parseInt(rst[i])];
                 geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }
             
@@ -305,7 +245,7 @@ THREE.DATLoader.prototype = {
             }
             
             
-            this.addElement({
+            data.addElement({
                 id: id,
                 type: geo_type,
                 faces : aux,
@@ -337,7 +277,7 @@ THREE.DATLoader.prototype = {
     
             //Vertices = 4 até 9 = 6
             for (var i =4;i<=9;i++){
-                G = this.nodes[parseInt(rst[i])]; 
+                G = data.nodes[parseInt(rst[i])];
                 geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }
             
@@ -366,7 +306,7 @@ THREE.DATLoader.prototype = {
             }
             
             
-            this.addElement({
+            data.addElement({
                 id: id,
                 type: geo_type,
                 faces : aux,
@@ -401,7 +341,7 @@ THREE.DATLoader.prototype = {
                       
             //Vertices = 11~4 = 8
             for (var i =4;i<=11;i++){
-                G = this.nodes[parseInt(rst[i])]; 
+                G = data.nodes[parseInt(rst[i])];
                 geometry.vertices.push(new THREE.Vector3(G.x, G.y, G.z));
             }
             
@@ -434,7 +374,7 @@ THREE.DATLoader.prototype = {
             }
             
             
-            this.addElement({
+            data.addElement({
                 id: id,
                 type: geo_type,
                 faces : aux,
@@ -470,14 +410,14 @@ THREE.DATLoader.prototype = {
             pid = parseInt(rst[3]); //Prop. ID
            
             //Nodes
-            G1 = this.nodes[parseInt(rst[4])];
-            G2 = this.nodes[parseInt(rst[5])];
+            G1 = data.nodes[parseInt(rst[4])];
+            G2 = data.nodes[parseInt(rst[5])];
             P1 = new THREE.Vector3(G1.x, G1.y, G1.z);
             P2 = new THREE.Vector3(G2.x, G2.y, G2.z);
             
             // width and area
             width = P1.distanceTo(P2);            
-            area = this.properties[pid].area;
+            area = data.properties[pid].area;
 
             //BoxGeometry            
             temp = new THREE.BoxGeometry( width, Math.sqrt(area), Math.sqrt(area));
@@ -508,7 +448,7 @@ THREE.DATLoader.prototype = {
                         
             
             //Add element
-            this.addElement({
+            data.addElement({
                 id: id,                
                 type: geo_type,
                 faces : aux,
@@ -521,24 +461,92 @@ THREE.DATLoader.prototype = {
         geometry.computeBoundingBox();
         geometry.computeBoundingSphere();        
         
-        return geometry;
+        return [geometry,data];
     }
 };
 
 
+
+THREE.DATData = function(){
+    this.nodes = [];
+    this.elements = [];
+    this.properties =[];
+    this.faceElement = [];//faceElement[face]=idElement = relation with faceID and Element ID
+};
+
+THREE.DATData.prototype = {
+    constructor: THREE.DATData,
+    addNode: function() {
+        return function(id, x, y, z) {
+            this.nodes[id] = {id: id,name:"GRID "+id,x: x,y: y,z: z,elements:[]}
+        };
+    }(),
+
+    addElement: function() {
+        return function(json) {
+            var faceID,nodeID;
+            //add element
+            this.elements[json.id] = json;
+
+            //add faces
+            for(var i=0;i<json.faces.length;i++){
+                faceID = json.faces[i];
+                this.faceElement[faceID] = json.id;
+            }
+            //add property
+            if(this.properties[json.pid])
+                this.properties[json.pid].elements.push(json.id);
+
+            //add Nodes
+            for(var i=0;i<json.verticesID.length;i++){
+                nodeID = json.verticesID[i]
+                this.nodes[nodeID].elements.push(json.id)
+            }
+
+        };
+    }(),
+    addPropriety: function() {
+        return function(prop){
+            this.properties[prop.id] = prop;
+        };
+    }(),
+
+    getElementByFaceIndex: function(face) {
+        var id = this.faceElement[face];
+        return this.elements[id];
+    },
+    getElementByVerticeIndex: function(verticeID) {
+        var id = this.faceElement[verticeID];
+        return this.elements[id];
+    },
+
+    getElemetByID: function(id) {
+        return this.elements[id];
+    },
+
+    getFacesByID: function(id) {
+        var f = [];
+        this.faceElement.forEach(function(v, i) {
+            if (v === id)
+                f.push(i);
+        });
+        return f;
+    }
+
+}
+
+
+
 function pTF(val) {
     var rt = null, aux;
-    
-  
 
     if ((aux = /(\+?\-?\d*\.\d*)((\-|\+)\d+)/g.exec(val))) //0.7+1 ou .70+1 ou 70.-1
         rt = parseFloat(aux[1]) * Math.pow(10, aux[2]);
 
-    if (rt === null) {         
+    if (rt === null) {
         rt = parseFloat(val);
         if(isNaN(rt)){
-            console.error("O arquivo pode estar fora dos padr?es de representa??o de ponto flutuante:" + val +
-                    "\nEx: O valor 7 pode ser representado como 7. | 7.0 | .7E1 | 0.7+1 | .70+1 | 7.E+0 | 70.-1");
+            throw new Error("Error reading Float value: " + val)
         }else{
             return rt;
         }
