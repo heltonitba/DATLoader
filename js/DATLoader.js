@@ -520,7 +520,7 @@ THREE.DATData.prototype = {
         return this.elements[id];
     },
 
-    getElemetByID: function(id) {
+    getElemet: function(id) {
         return this.elements[id];
     },
 
