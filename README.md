@@ -24,6 +24,9 @@ Used Version: Nastran 2012 Quick Reference and three.js 71
 - PBAR
 - PSHELL (Just read, doesn't draw)
 
+### Suported Base: ###
+- Base Rectangular 
+
 
 ### Usage ###
 
