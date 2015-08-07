@@ -52,3 +52,5 @@ loader.load('./file.dat', function(geometry) {
     });
 ```
 By default, each Element(CTRIA,CQUAD,etc...) is printed with random color.
+
+Example: https://datloader-heltonitba.c9.io/
