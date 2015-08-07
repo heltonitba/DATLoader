@@ -524,7 +524,7 @@ THREE.DATData.prototype = {
         return this.elements[id];
     },
 
-    getFacesByID: function(id) {
+    getFacesOfElementID: function(id) {
         var f = [];
         this.faceElement.forEach(function(v, i) {
             if (v === id)
