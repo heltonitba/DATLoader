@@ -1,6 +1,12 @@
 DATLoader using three.js
 ========
 
+#### NASTRAN Software ####
+Since the 1960’s NASTRAN (NASA Structural ANalysis) has been used to solve structural/thermal/aerodynamic/dynamics/etc. problems. The file formats were originally developed by MSC for a product now called MSC Nastran. There have been many spinoff version of NASTRAN that have been created based on the 2001 source code release of MSC Nastran in 2002 after settlement with the FTC (Federal Trade Commisson). There is now NX Nastran and NEi Nastran, which are developed independently.
+
+This text above is from [pyNastran](http://pynastran-git.readthedocs.org/en/latest/manual/introduction.html).
+
+
 #### three.js ####
 [three.js](http://threejs.org/) is a JavaScript library with the aim to create a lightweight 3D library with a very low level of complexity.
 You only need a browser with WebGL compatibility (almost all)!
@@ -41,7 +47,8 @@ var loader = new THREE.DATLoader();
 var material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors,side: THREE.DoubleSide});
 
 loader.load('./file.dat', function(geometry,DATData) {
-        console.log(DATData);
+        //Warning: DATData can be heavy to display
+        //console.log(DATData);
         
         mesh = new THREE.Mesh(geometry, material);        
         scene.add(mesh);
@@ -52,6 +59,20 @@ loader.load('./file.dat', function(geometry,DATData) {
   
     });
 ```
-By default, each Element(CTRIA,CQUAD,etc...) is printed with random color.
+By default, each Element will be printed with random color.
 
 Example: https://datloader-heltonitba.c9.io/
+
+
+### DATData: ###
+
+DATData is a return of load function who carry a important data from DAT/BDF file loaded, first, the attributes:
+
+- Nodes: GRID/Vertice/Point
+- Elements: All supported Elements
+- Properties: All supported Properties
+- faceElement: Relation between faceIndex and Element ID
+
+and methods:
+
+//TODO
