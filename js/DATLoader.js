@@ -18,6 +18,48 @@ THREE.DATLoader.prototype = {
         }, onProgress, onError);
 
     },
+    toGeometry: function(P1,P2,width,height){
+            var x = width/2;
+            var y = height/2;
+            var geo = new THREE.Geometry();
+
+            geo.vertices.push(new THREE.Vector3(P1.x+x,P1.y+y,P1.z));
+            geo.vertices.push(new THREE.Vector3(P1.x+x,P1.y+y,P1.z));
+            geo.vertices.push(new THREE.Vector3(P1.x-x,P1.y+y,P1.z));
+            geo.vertices.push(new THREE.Vector3(P1.x-x,P1.y-y,P1.z));
+
+            geo.vertices.push(new THREE.Vector3(P2.x+x,P2.y-y,P2.z));
+            geo.vertices.push(new THREE.Vector3(P2.x+x,P2.y+y,P2.z));
+            geo.vertices.push(new THREE.Vector3(P2.x-x,P2.y+y,P2.z));
+            geo.vertices.push(new THREE.Vector3(P2.x-x,P2.y-y,P2.z));
+
+
+            //Face behind
+            geo.faces.push(new THREE.Face3(0,1,2));
+            geo.faces.push(new THREE.Face3(2,3,0));
+
+            //Face in front
+            geo.faces.push(new THREE.Face3(6,5,4));
+            geo.faces.push(new THREE.Face3(4,7,6));
+
+            //Face right
+            geo.faces.push(new THREE.Face3(1,5,6));
+            geo.faces.push(new THREE.Face3(6,2,1));
+
+            //Face left
+            geo.faces.push(new THREE.Face3(4,0,3));
+            geo.faces.push(new THREE.Face3(3,7,4));
+
+            //Face top
+            geo.faces.push(new THREE.Face3(0,4,5));
+            geo.faces.push(new THREE.Face3(5,1,0));
+
+            //Face bottom
+            geo.faces.push(new THREE.Face3(2,6,7));
+            geo.faces.push(new THREE.Face3(7,3,2));
+
+            return geo;
+    },
 
    /* fileApi: function(File,onLoad){
         var scope = this;
@@ -41,11 +83,11 @@ THREE.DATLoader.prototype = {
     
     parse: function (textFile) {
         var length, id, geo_type, G, G1, G2, P1, P2, lenFaces, rst = [], pattern;
-        var width, area, pid, temp, mid, rgb = {}, aux = [];
+        var width,heigth, area, pid, temp, mid, rgb = {}, aux = [];
         var geometry = new THREE.Geometry();
         var data = new THREE.DATData()
-        var middle, dir, quaternion, matrix;
-        
+
+
 
         //----------------------------------------------------------------------
         // GRID
@@ -393,7 +435,7 @@ THREE.DATLoader.prototype = {
             });
         }
         //----------------------------------------------------------------------
-      
+
       
       
       
@@ -412,40 +454,32 @@ THREE.DATLoader.prototype = {
             //Nodes
             G1 = data.nodes[parseInt(rst[4])];
             G2 = data.nodes[parseInt(rst[5])];
+
+            // Vertices
             P1 = new THREE.Vector3(G1.x, G1.y, G1.z);
             P2 = new THREE.Vector3(G2.x, G2.y, G2.z);
-            
-            // width and area
-            width = P1.distanceTo(P2);            
-            area = data.properties[pid].area;
 
-            //BoxGeometry            
-            temp = new THREE.BoxGeometry( width, Math.sqrt(area), Math.sqrt(area));
-            
-            
-            //Change position and rotation
-            middle = new THREE.Vector3().copy(P1).lerp(P2, 0.5);
-            dir = new THREE.Vector3().copy(P2).sub(P1).normalize();
-            quaternion = new THREE.Quaternion().setFromUnitVectors( new THREE.Vector3(1, 0, 0), dir )
-            matrix = new THREE.Matrix4().compose( middle, quaternion, new THREE.Vector3(1,1,1) );
-            
-            
-            // Merge Geometry
-            // lenFaces += 12
-            length = geometry.vertices.length;  
-            geometry.merge( temp, matrix );
-            
-            //Userdata   
+            //Area
+            area = data.properties[pid].area;
+            width = Math.sqrt(area);
+            heigth = width;
+
+            //TRHEE.Geometry
+            temp = this.toGeometry(P1,P2,width,heigth);
+
+            // Merge Geometry master with temp geometry
+            geometry.merge( temp);
+
+            //userData
             lenFaces = geometry.faces.length;
             aux =[];
-            
-            
-            //userData Face
-            for (var i = 12; i >= 1; i--){
-                aux.push(lenFaces - i);
+
+
+            //userData and Face Color
+            for (var i = 12; i >= 1; i--) {
                 geometry.faces[lenFaces - i].color.setRGB(rgb.r,rgb.g,rgb.b);
+                aux.push(lenFaces - i);
             }
-                        
             
             //Add element
             data.addElement({
@@ -455,9 +489,9 @@ THREE.DATLoader.prototype = {
                 pid: pid,
                 propriety: pid,
                 verticesID: [ parseInt(rst[4]), parseInt(rst[5]) ]
-            });   
+            });
         }
-                
+
         geometry.computeBoundingBox();
         geometry.computeBoundingSphere();        
         
@@ -536,8 +570,6 @@ THREE.DATData.prototype = {
     }
 
 }
-
-
 
 function pTF(val) {
     var rt = null, aux;
