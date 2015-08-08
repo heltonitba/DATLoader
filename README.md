@@ -17,7 +17,10 @@ You only need a browser with WebGL compatibility (almost all)!
 
 BDF and DAT are the geometries files for Nastran and FEMAP Software, both files are almost equal and the geometric data in these files are reported in MSC Nastran [Quick Reference Guide](https://simcompanion.mscsoftware.com/infocenter/index?page=content&id=DOC10004)
 
-Used Version: Nastran 2012 Quick Reference and three.js 71
+Example: https://datloader-heltonitba.c9.io/
+
+### Version ###
+three.js 71
 
 ### Suported Elements: ###
 - GRID
@@ -31,8 +34,7 @@ Used Version: Nastran 2012 Quick Reference and three.js 71
 - PSHELL (Just read, doesn't draw)
 
 ### Suported Base: ###
-- Base Rectangular 
-
+- Base Rectangular (Very important!)
 
 ### Usage ###
 
@@ -61,8 +63,6 @@ loader.load('./file.dat', function(geometry,DATData) {
 ```
 By default, each Element will be printed with random color.
 
-Example: https://datloader-heltonitba.c9.io/
-
 
 ### DATData: ###
 
@@ -73,6 +73,8 @@ DATData is a return of load function who carry a important data from DAT/BDF fil
 - Properties: All supported Properties
 - faceElement: Relation between faceIndex and Element ID
 
-and methods:
+and DATData methods:
 
-//TODO
+- getElementByFaceIndex(faceIndex)
+- getElemet(elementID)   //is the same of DATData.elements[elementID]
+- getFacesOfElementID(elementID) // return all faceIndex of respective Element ID
