@@ -22,7 +22,7 @@ function init() {
 
     prepareScene();
 
-    loader.load('./result.dat', function(geometry,DATData) {
+    loader.load('./teste.dat', function(geometry,DATData) {
         // set var userData
         userData = DATData
 
