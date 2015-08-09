@@ -22,7 +22,7 @@ function init() {
 
     prepareScene();
 
-    loader.load('./contact.bdf', function(geometry,DATData) {
+    loader.load('./models/contact.bdf', function(geometry,DATData) {
         // set var userData
         userData = DATData
 
@@ -30,7 +30,7 @@ function init() {
         scene.add(mesh);
         
         //Update camera and controls
-        var position = geometry.boundingBox.min.clone();
+        var position = geometry.boundingBox.max.clone();
         position.x = position.x + 100;
         position.y = position.y + 30;
         camera.position.copy(position)
