@@ -202,7 +202,7 @@ THREE.DATLoader.prototype = {
         //----------------------------------------------------------------------
         // CQUAD
         //----------------------------------------------------------------------    
-        pattern = /(CQUAD\s{3}|CQUAD4\s{2}|CQUAD6\s{2}|CQUAD8\s{2})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;        
+        pattern = /(CQUAD\s{3}|CQUAD4\s{2}|CQUAD6\s{2}|CQUAD8\s{2})(.{8})(.{8})(.{8})(.{8})(.{8})(.{1,8})/g;
         while ((rst = pattern.exec(textFile)) !== null) {
             rgb = {r: Math.random(), g: Math.random(), b: Math.random()};
             id = parseInt(rst[2]),
