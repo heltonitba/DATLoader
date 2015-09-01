@@ -13,6 +13,8 @@ var     raycaster = new THREE.Raycaster(),
         container = document.getElementById('container'),
         mouse = new THREE.Vector2(),
         material = new THREE.MeshBasicMaterial({vertexColors: THREE.FaceColors,side: THREE.DoubleSide}),
+	material2 = new THREE.MeshLambertMaterial( { color: 0xdddddd, shading: THREE.SmoothShading, side: THREE.DoubleSide} ),
+	line = new THREE.MeshBasicMaterial ({ color: 0x000000, wireframe: true }),
         mesh,userData;
 
 init();
@@ -22,12 +24,25 @@ function init() {
 
     prepareScene();
 
+	// Lights
+
+	scene.add( new THREE.AmbientLight( 0xffffff ) );
+
+	addShadowedLight( 1, 1, 1, 0xffffff, 1.35 );
+	addShadowedLight( 0.5, 1, -1, 0xffaa00, 1 );
+
+
     loader.load('./models/contact.bdf', function(geometry,DATData) {
         // set var userData
         userData = DATData
 
-        mesh = new THREE.Mesh(geometry, material);
+        mesh = new THREE.Mesh(geometry, material2);
         scene.add(mesh);
+	wireframe = new THREE.Mesh (geometry,line)
+	scene.add (wireframe);
+
+	edges = new THREE.EdgesHelper( mesh, 0x000000 );
+	//scene.add( edges );
         
         //Update camera and controls
         var position = geometry.boundingBox.max.clone();
@@ -114,4 +129,31 @@ function displayIntersect(intersects, userData) {
         $("#list-ids").html(ids);
         console.log(ids)
     }
+}
+
+
+function addShadowedLight( x, y, z, color, intensity ) {
+
+	var directionalLight = new THREE.DirectionalLight( color, intensity );
+	directionalLight.position.set( x, y, z )
+	scene.add( directionalLight );
+
+	directionalLight.castShadow = true;
+	// directionalLight.shadowCameraVisible = true;
+
+	var d = 1;
+	directionalLight.shadowCameraLeft = -d;
+	directionalLight.shadowCameraRight = d;
+	directionalLight.shadowCameraTop = d;
+	directionalLight.shadowCameraBottom = -d;
+
+	directionalLight.shadowCameraNear = 1;
+	directionalLight.shadowCameraFar = 4;
+
+	directionalLight.shadowMapWidth = 1024;
+	directionalLight.shadowMapHeight = 1024;
+
+	directionalLight.shadowBias = -0.005;
+	directionalLight.shadowDarkness = 0.15;
+
 }
